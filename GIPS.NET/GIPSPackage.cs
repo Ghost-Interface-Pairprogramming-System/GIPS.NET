@@ -109,7 +109,8 @@ namespace GIPS.NET
                 Debug.WriteLine("LineAt: " + lineAt);
                 Debug.WriteLine("Message: " + message);
                 Debug.WriteLine("------Exception Not Handled!!------");
-
+                var ukgkConn = new UkagakaSSTPConnection("test");
+                ukgkConn.SendNotify1_1("OnExceptionOccured", type);
             }
 
             return 0;
