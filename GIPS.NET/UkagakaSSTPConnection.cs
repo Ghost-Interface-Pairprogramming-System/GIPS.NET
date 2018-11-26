@@ -43,14 +43,14 @@ namespace GIPS.NET
             sb.Append("Charset: " + charset + "\r\n\r\n");
 
             string response;
-            //try
-            //{
+            try
+            {
                 response = Send(sb.ToString());
-            //}
-            //catch (IOException e)
-            //{
-            //    response = "IOException";
-            //}
+            }
+            catch (IOException e)
+            {
+                response = "IOException";
+            }
 
             return response;
         }

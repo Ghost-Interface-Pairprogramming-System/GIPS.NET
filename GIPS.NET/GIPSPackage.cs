@@ -84,33 +84,36 @@ namespace GIPS.NET
         {
             ShowMode(dbgmodeNew);
 
-            var debugger = dte.Debugger as EnvDTE80.Debugger2;
+            var debugger = dte.Debugger as EnvDTE90a.Debugger4;
             var reason = debugger.LastBreakReason;
 
             if (dbgmodeNew == DBGMODE.DBGMODE_Break && reason == EnvDTE.dbgEventReason.dbgEventReasonExceptionNotHandled)
             {
                 var exception = debugger.GetExpression2("$exception");
-                var firstStackTrace = debugger.GetExpression2("$exception.StackTrace.Split(new String[] { \"\\r\\n\" }, StringSplitOptions.None)[0]").Value;
-
+                var lastSplitIndex = Int32.Parse(debugger.GetExpression2("$exception.StackTrace.Split(new String[] { \"\\r\\n\" }, StringSplitOptions.None).Length - 1").Value);
+                var firstStackTrace = debugger.GetExpression2("$exception.StackTrace.Split(new String[] { \"\\r\\n\" }, StringSplitOptions.None)["+lastSplitIndex+"]").Value;
+                var firstStackFrame = debugger.CurrentStackFrame as EnvDTE90a.StackFrame2;
 
                 var type = exception.Type;
-                var lang = debugger.CurrentStackFrame.Language;
+                var lang = firstStackFrame.Language;
 
-                var start = firstStackTrace.LastIndexOf(' ') + 1;
-                var end = firstStackTrace.LastIndexOf('\"');
-                var lineAt = firstStackTrace.Substring(start, end - start);
-
+                //var start = firstStackTrace.LastIndexOf(' ') + 1;
+                //var end = firstStackTrace.Length - 1;
+                //var lineAt = firstStackTrace.Substring(start, end - start);
+                var lineAt = firstStackFrame.LineNumber;
                 var message = exception.Value;
 
+                var name = firstStackFrame.FileName;
 
                 Debug.WriteLine("------Exception Not Handled!!------");
                 Debug.WriteLine("Type: " + type);
                 Debug.WriteLine("Lang: " + lang);
+                Debug.WriteLine("Name:" + name);
                 Debug.WriteLine("LineAt: " + lineAt);
                 Debug.WriteLine("Message: " + message);
                 Debug.WriteLine("------Exception Not Handled!!------");
                 var ukgkConn = new UkagakaSSTPConnection("test");
-                ukgkConn.SendNotify1_1("OnExceptionOccured", type);
+                ukgkConn.SendNotify1_1("OnGIPSExceptionOccurred", lang, type, "", lineAt.ToString(), message);
             }
 
             return 0;
