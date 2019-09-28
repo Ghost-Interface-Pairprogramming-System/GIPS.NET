@@ -1,16 +1,11 @@
 ﻿using System;
-using System.ComponentModel.Design;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.VisualStudio;
-using Microsoft.VisualStudio.OLE.Interop;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
-using Microsoft.Win32;
 using Task = System.Threading.Tasks.Task;
 
 namespace GIPS.NET
@@ -36,7 +31,7 @@ namespace GIPS.NET
     [InstalledProductRegistration("#110", "#112", "1.0", IconResourceID = 400)] // Info on this package for Help/About
     [Guid(GIPSPackage.PackageGuidString)]
     [SuppressMessage("StyleCop.CSharp.DocumentationRules", "SA1650:ElementDocumentationMustBeSpelledCorrectly", Justification = "pkgdef, VS and vsixmanifest are valid VS terms")]
-    [ProvideAutoLoad(VSConstants.UICONTEXT.SolutionExists_string)]
+    [ProvideAutoLoad(VSConstants.UICONTEXT.SolutionExists_string, PackageAutoLoadFlags.BackgroundLoad)]
     public sealed class GIPSPackage : AsyncPackage, IVsDebuggerEvents
     {
 
@@ -74,19 +69,20 @@ namespace GIPS.NET
             // Do any initialization that requires the UI thread after switching to the UI thread.
             await this.JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
 
-            var debugger = GetService(typeof(SVsShellDebugger)) as IVsDebugger;
-            dte = GetService(typeof(EnvDTE.DTE)) as EnvDTE80.DTE2;
+            var debugger = await GetServiceAsync(typeof(SVsShellDebugger)) as IVsDebugger;
+            dte = await GetServiceAsync(typeof(EnvDTE.DTE)) as EnvDTE80.DTE2;
 
-            debugger.AdviseDebuggerEvents(this, out cookie);
+            debugger?.AdviseDebuggerEvents(this, out cookie);
 
             new UkagakaSSTPConnection("GIPS.NET").SendNotify1_1("OnGIPSStart", ".NET", "0");
         }
 
         public int OnModeChange(DBGMODE dbgmodeNew)
         {
+            ThreadHelper.ThrowIfNotOnUIThread();
             ShowMode(dbgmodeNew);
 
-            var debugger = dte.Debugger as EnvDTE90a.Debugger4;
+            var debugger = dte?.Debugger as EnvDTE90a.Debugger4;
             var reason = debugger.LastBreakReason;
 
             if (dbgmodeNew == DBGMODE.DBGMODE_Break && reason == EnvDTE.dbgEventReason.dbgEventReasonExceptionNotHandled)
@@ -105,25 +101,25 @@ namespace GIPS.NET
                     case "C#":
                         Debug.WriteLine("-------------C#--------------");
                         CODE_lastSplitIndex = "$exception.StackTrace.Split(new String[] { \"\\r\\n\" }, StringSplitOptions.None).Length - 1";
-                        lastSplitIndex = Int32.Parse(debugger.GetExpression2(CODE_lastSplitIndex).Value);
+                        lastSplitIndex = int.Parse(debugger.GetExpression2(CODE_lastSplitIndex).Value);
                         CODE_firstStackTrace = "$exception.StackTrace.Split(new String[] { \"\\r\\n\" }, StringSplitOptions.None)[" + lastSplitIndex + "]";
                         break;
                     case "Basic":
                         Debug.WriteLine("-------------VB--------------");
                         CODE_lastSplitIndex = "$exception.StackTrace.Split(New String() { \"\\r\\n\" }, StringSplitOptions.None).Length - 1";
-                        lastSplitIndex = Int32.Parse(debugger.GetExpression2(CODE_lastSplitIndex).Value);
+                        lastSplitIndex = int.Parse(debugger.GetExpression2(CODE_lastSplitIndex).Value);
                         CODE_firstStackTrace = "$exception.StackTrace.Split(New String() { \"\\r\\n\" }, StringSplitOptions.None)(" + lastSplitIndex + ")";
                         break;
                     case "F#":
                         Debug.WriteLine("-------------F#--------------");
                         CODE_lastSplitIndex = "$exception.StackTrace.Split().Length - 1";
-                        lastSplitIndex = Int32.Parse(debugger.GetExpression2(CODE_lastSplitIndex).Value);
+                        lastSplitIndex = int.Parse(debugger.GetExpression2(CODE_lastSplitIndex).Value);
                         CODE_firstStackTrace = "$exception.StackTrace.Split().[" + lastSplitIndex + "]";
                         break;
                     case "C++":
                         Debug.WriteLine("-------------VC--------------");
                         CODE_lastSplitIndex = "$exception.StackTrace.Split().Length - 1";
-                        lastSplitIndex = Int32.Parse(debugger.GetExpression2(CODE_lastSplitIndex).Value);
+                        lastSplitIndex = int.Parse(debugger.GetExpression2(CODE_lastSplitIndex).Value);
                         CODE_firstStackTrace = "$exception.StackTrace.Split()[" + lastSplitIndex + "]";
                         break;
                 }
