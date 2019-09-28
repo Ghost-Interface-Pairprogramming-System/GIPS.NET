@@ -47,9 +47,9 @@ namespace GIPS.NET
             {
                 response = Send(sb.ToString());
             }
-            catch (IOException e)
+            catch
             {
-                response = "IOException";
+                response = "Eroor";
             }
 
             return response;

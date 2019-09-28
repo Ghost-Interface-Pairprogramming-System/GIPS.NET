@@ -78,6 +78,8 @@ namespace GIPS.NET
             dte = GetService(typeof(EnvDTE.DTE)) as EnvDTE80.DTE2;
 
             debugger.AdviseDebuggerEvents(this, out cookie);
+
+            new UkagakaSSTPConnection("GIPS.NET").SendNotify1_1("OnGIPSStart", ".NET", "0");
         }
 
         public int OnModeChange(DBGMODE dbgmodeNew)
@@ -90,20 +92,53 @@ namespace GIPS.NET
             if (dbgmodeNew == DBGMODE.DBGMODE_Break && reason == EnvDTE.dbgEventReason.dbgEventReasonExceptionNotHandled)
             {
                 var exception = debugger.GetExpression2("$exception");
-                var lastSplitIndex = Int32.Parse(debugger.GetExpression2("$exception.StackTrace.Split(new String[] { \"\\r\\n\" }, StringSplitOptions.None).Length - 1").Value);
-                var firstStackTrace = debugger.GetExpression2("$exception.StackTrace.Split(new String[] { \"\\r\\n\" }, StringSplitOptions.None)["+lastSplitIndex+"]").Value;
-                var firstStackFrame = debugger.CurrentStackFrame as EnvDTE90a.StackFrame2;
 
-                var type = exception.Type;
+                var firstStackFrame = debugger.CurrentStackFrame as EnvDTE90a.StackFrame2;
                 var lang = firstStackFrame.Language;
 
+                var CODE_lastSplitIndex = "";
+                var CODE_firstStackTrace = "";
+                var lastSplitIndex = 0;
+
+                switch (lang)
+                {
+                    case "C#":
+                        Debug.WriteLine("-------------C#--------------");
+                        CODE_lastSplitIndex = "$exception.StackTrace.Split(new String[] { \"\\r\\n\" }, StringSplitOptions.None).Length - 1";
+                        lastSplitIndex = Int32.Parse(debugger.GetExpression2(CODE_lastSplitIndex).Value);
+                        CODE_firstStackTrace = "$exception.StackTrace.Split(new String[] { \"\\r\\n\" }, StringSplitOptions.None)[" + lastSplitIndex + "]";
+                        break;
+                    case "Basic":
+                        Debug.WriteLine("-------------VB--------------");
+                        CODE_lastSplitIndex = "$exception.StackTrace.Split(New String() { \"\\r\\n\" }, StringSplitOptions.None).Length - 1";
+                        lastSplitIndex = Int32.Parse(debugger.GetExpression2(CODE_lastSplitIndex).Value);
+                        CODE_firstStackTrace = "$exception.StackTrace.Split(New String() { \"\\r\\n\" }, StringSplitOptions.None)(" + lastSplitIndex + ")";
+                        break;
+                    case "F#":
+                        Debug.WriteLine("-------------F#--------------");
+                        CODE_lastSplitIndex = "$exception.StackTrace.Split().Length - 1";
+                        lastSplitIndex = Int32.Parse(debugger.GetExpression2(CODE_lastSplitIndex).Value);
+                        CODE_firstStackTrace = "$exception.StackTrace.Split().[" + lastSplitIndex + "]";
+                        break;
+                    case "C++":
+                        Debug.WriteLine("-------------VC--------------");
+                        CODE_lastSplitIndex = "$exception.StackTrace.Split().Length - 1";
+                        lastSplitIndex = Int32.Parse(debugger.GetExpression2(CODE_lastSplitIndex).Value);
+                        CODE_firstStackTrace = "$exception.StackTrace.Split()[" + lastSplitIndex + "]";
+                        break;
+                }
+
+                var firstStackTrace = debugger.GetExpression2(CODE_firstStackTrace).Value;
+
+                var type = exception.Type;
+                
                 //var start = firstStackTrace.LastIndexOf(' ') + 1;
                 //var end = firstStackTrace.Length - 1;
                 //var lineAt = firstStackTrace.Substring(start, end - start);
                 var lineAt = firstStackFrame.LineNumber;
                 var message = exception.Value;
 
-                var name = firstStackFrame.FileName;
+                var name = System.IO.Path.GetFileName(firstStackFrame.FileName);
 
                 Debug.WriteLine("------Exception Not Handled!!------");
                 Debug.WriteLine("Type: " + type);
@@ -112,8 +147,8 @@ namespace GIPS.NET
                 Debug.WriteLine("LineAt: " + lineAt);
                 Debug.WriteLine("Message: " + message);
                 Debug.WriteLine("------Exception Not Handled!!------");
-                var ukgkConn = new UkagakaSSTPConnection("test");
-                ukgkConn.SendNotify1_1("OnGIPSExceptionOccurred", lang, type, "", lineAt.ToString(), message);
+                var ukgkConn = new UkagakaSSTPConnection("GIPS.NET");
+                ukgkConn.SendNotify1_1("OnGIPSExceptionOccurred", lang, type, name, lineAt.ToString(), message);
             }
 
             return 0;
